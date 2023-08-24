@@ -13,6 +13,7 @@ namespace AmadeusAirConnection.Controllers;
 [Route("itinerary")]
 public class ItineraryController : ControllerBase
 {
+    private readonly IAmadeusService _amadeusService;
     private static readonly List<AirlineRoute> RouteInfos = new List<AirlineRoute>
     {
         new AirlineRoute { From = 'A', To = 'B', Cost = 60},
@@ -33,8 +34,6 @@ public class ItineraryController : ControllerBase
         new AirlineRoute { From = 'I', To = 'D', Cost = 30},
     };
 
-    private readonly IAmadeusService _amadeusService;
-
     public ItineraryController(IAmadeusService amadeusService)
     {
         _amadeusService = amadeusService;
@@ -42,23 +41,30 @@ public class ItineraryController : ControllerBase
     }
 
     [HttpGet]
-    [Route("getcost")]
-    public IActionResult GetCostByItinerary([FromQuery]string itinerary)
+    [Route("{itinerary}")]
+    public IActionResult GetCostByItinerary(string itinerary)
     {
-        List<char> fromTo = new List<char>(itinerary.Replace("-", ""));
-        int cost = _amadeusService.GetCost(fromTo);
-        if (cost >= 0)
+        try
         {
-            var result = new GetCostResponse
+            List<char> fromTo = new List<char>(itinerary.Replace("-", ""));
+            int cost = _amadeusService.GetCost(fromTo);
+            if (cost >= 0)
             {
-                Itinerary = itinerary,
-                Cost = cost,
-            };
-            return Ok(CustomActionResult.Success(result));
+                var result = new GetCostResponse
+                {
+                    Itinerary = itinerary,
+                    Cost = cost,
+                };
+                return Ok(result);
+            }
+            else
+            {
+                return NotFound(CustomActionResult.Error(404, "No Such Itinerary"));
+            }
         }
-        else
+        catch (Exception)
         {
-            return BadRequest(CustomActionResult.Error(404, "No Such Itinerary"));
+            return StatusCode(500, "Internal Server Error");
         }
     }
 
@@ -66,19 +72,26 @@ public class ItineraryController : ControllerBase
     [Route("getcheapest")]
     public IActionResult GetCheapestItinerary([FromBody] GetCheapestInput body)
     {
-        var cheapestCost = _amadeusService.GetCheapestItinerary(body.From, body.To);
-        if (cheapestCost >= 0)
+        try
         {
-            var result = new GetCostResponse
+            var cheapestCost = _amadeusService.GetCheapestItinerary(body.From, body.To);
+            if (cheapestCost >= 0)
             {
-                Itinerary = body.From + " " + body.To,
-                Cost = cheapestCost,
-            };
-            return Ok(CustomActionResult.Success(result));
+                var result = new GetCostResponse
+                {
+                    Itinerary = body.From + " " + body.To,
+                    Cost = cheapestCost,
+                };
+                return Ok(CustomActionResult.Success(result));
+            }
+            else
+            {
+                return NotFound(CustomActionResult.Error(404, "No Such Itinerary"));
+            }
         }
-        else
+        catch (Exception)
         {
-            return BadRequest(CustomActionResult.Error(404, "No Such Itinerary"));
+            return StatusCode(500, "Internal Server Error");
         }
     }
 }
